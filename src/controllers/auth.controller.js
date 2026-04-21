@@ -1,8 +1,8 @@
 const userModel = require('../models/user.model')
-const crypto = require('crypto')
+const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 
- async function registerController (req, res) {
+async function registerController(req, res) {
     const { email, username, password, bio, profileImage } = req.body
 
 
@@ -24,7 +24,6 @@ const jwt = require('jsonwebtoken')
 
     //ye jo upr ka code h usi ko same cheez ki h bs diffrent technique se kiya hain 
 
-
     const isUserAlreadyExists = await userModel.findOne({
         $or: [  //or means yaha pr ki agr dono me so jo exist krta h usko return kr do ya, agr username h tou usko  or email h tou usko return kr do
             { username },
@@ -38,7 +37,9 @@ const jwt = require('jsonwebtoken')
             })
     }
 
-    const hash = crypto.createHash('sha256').update(password).digest('hex');
+    // const hash = crypto.createHash('sha256').update(password).digest('hex')
+
+    const hash = await bcrypt.hash(password, 10)
 
     const user = await userModel.create({
         username,
@@ -54,7 +55,10 @@ const jwt = require('jsonwebtoken')
          * - data unique hona chahiye
          */
         id: user._id
-    }, process.env.JWT_SECRET, { expireIn: "1d" })
+    },
+        process.env.JWT_SECRET,
+        { expireIn: "1d" }
+    )
 
     res.cookie("token", token)
     //res me kbhi bhi password ni jata hain 
@@ -70,7 +74,7 @@ const jwt = require('jsonwebtoken')
 
 }
 
-async function loginController(req, res){
+async function loginController(req, res) {
     const { username, email, password } = req.body;
 
     const user = await userModel.findOne({
@@ -83,12 +87,14 @@ async function loginController(req, res){
         });
     }
 
-    const hash = crypto
-        .createHash('sha256')
-        .update(password)
-        .digest('hex');
+    // const hash = crypto
+    //     .createHash('sha256')
+    //     .update(password)
+    //     .digest('hex');
 
-    const isPasswordValid = hash === user.password;
+    // const isPasswordValid = hash === user.password;
+
+    const isPasswordValid = await bcrypt.compare(password, user.password)
 
     if (!isPasswordValid) {
         return res.status(401).json({
